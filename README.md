@@ -19,7 +19,8 @@ The structure should look like the following:
 ## Installation
 
 ```bash
-git https://github.com/SookmyungHumanAI/real2sim_simple_beam.git
+git clone https://github.com/SookmyungHumanAI/deformable-beam-estimation.git
+cd deformable-beam-estimation
 conda env create -f sim_beam.yaml
 conda activate sim_beam
 ```
