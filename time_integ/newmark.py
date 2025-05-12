@@ -2,6 +2,16 @@ import torch
 from torch.nn import MSELoss, Parameter
 from torch.optim import Adam
 
+def F(t, num_ele, L, accel, A, rho):
+    ret = torch.tensor([[0], [0]])
+    w = rho * accel[t] * A
+    for i in range(num_ele):
+        if i==num_ele-1:
+            ret = torch.cat((ret, torch.tensor([[-w*L/2], [w*L**2/12]])))
+        else:
+            ret = torch.cat((ret, torch.tensor([[-w*L], [0]])))
+    return ret
+
 def newmark(in_pos, in_accel, num_ele, delta_t, num_steps, num_dof, I, A, L, rho, E, assemble_K, assemble_M, optim=False, nu=None):
     beta = 1/4
     gamma = 1/2
