@@ -1,6 +1,6 @@
 import torch
 
-def assemble_K_eb(num_ele, num_dof, E, I, L, nu=None):
+def assemble_K_eb(num_ele, num_dof, E, I, L, d, nu=None):
     """
     Assemble the global stiffness matrix for a Euler-Bernoulli beam element system.
     - Uses classical beam theory (no shear deformation considered)
@@ -26,7 +26,7 @@ def assemble_K_eb(num_ele, num_dof, E, I, L, nu=None):
     
     return K
 
-def assemble_M_eb(num_ele, num_dof, rho, A, L):
+def assemble_M_eb(num_ele, num_dof, rho, A, L, I):
     """
     Assemble the global mass matrix for a Euler-Bernoulli beam element system.
     - Constructs the consistent mass matrix for each beam element

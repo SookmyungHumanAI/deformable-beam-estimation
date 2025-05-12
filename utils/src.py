@@ -109,14 +109,14 @@ def cylinder(num_ele, mass, d, l):
     L = l / num_ele
     return num_dof, I, A, L, rho
 
-def init_simulation(cfg_path):
+def init_simulation(cfg_path, dt=0.05):
     with open(cfg_path, 'r') as f:
         cfg = yaml.full_load(f)
     num_ele = int(cfg["num_ele"])
     mass = float(cfg["mass"])
     l = float(cfg["l"])
     d = float(cfg["d"])
-    dt = float(cfg["dt"])
+    dt = float(cfg["dt"]) if float(cfg["dt"])==dt else dt
 
     end = float(cfg["sim_end"])
     start = float(cfg["sim_start"])
@@ -129,4 +129,4 @@ def init_simulation(cfg_path):
     init_E = cfg["init_E"]
     init_lr = cfg["init_lr"]
     
-    return num_ele, dt, delta_t, num_steps, num_dof, I, A, L, rho, init_E, init_lr
+    return num_ele, dt, delta_t, num_steps, num_dof, I, A, L, d, rho, init_E, init_lr

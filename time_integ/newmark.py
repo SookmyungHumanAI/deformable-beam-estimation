@@ -12,13 +12,13 @@ def F(t, num_ele, L, accel, A, rho):
             ret = torch.cat((ret, torch.tensor([[-w*L], [0]])))
     return ret
 
-def newmark(in_pos, in_accel, num_ele, delta_t, num_steps, num_dof, I, A, L, rho, E, assemble_K, assemble_M, optim=False, nu=None):
+def newmark(in_pos, in_accel, num_ele, delta_t, num_steps, num_dof, I, A, L, d, rho, E, assemble_K, assemble_M, optim=False, nu=None):
     beta = 1/4
     gamma = 1/2
     
-    K = assemble_K(num_ele, num_dof, E, I, L, nu)
-    M = assemble_M(num_ele, num_dof, rho, A, L)
-
+    K = assemble_K(num_ele, num_dof, E, I, L, d, nu)
+    M = assemble_M(num_ele, num_dof, rho, A, L, I)
+    
     K_new = torch.linalg.inv((K + 1/(beta*delta_t**2)*M))
     F_0 = F(t=0, num_ele=num_ele, L=L, accel=in_accel, A=A, rho=rho)[2:]
     out_disp = torch.zeros((num_dof, num_steps + 1))
@@ -47,15 +47,15 @@ def newmark(in_pos, in_accel, num_ele, delta_t, num_steps, num_dof, I, A, L, rho
     else:
         return out_disp
 
-def opt_newmark(num_ele, delta_t, num_steps, num_dof, I, A, L, rho, init_E, init_lr, \
+def opt_newmark(num_ele, delta_t, num_steps, num_dof, I, A, L, d, rho, init_E, init_lr, \
     base_pos, tip_pos, base_accel, assemble_K, assemble_M, optim_num = 100, nu=-100):
 
     E = Parameter(torch.tensor([init_E], dtype=torch.float))
     if nu != -100:
         nu = Parameter(torch.tensor([nu], dtype=torch.float))
         optimizer = Adam([
-                {'params': E,   'lr': init_lr},         # E에 대한 학습률
-                {'params': nu,  'lr': 5e-3}    # nu에 대한 학습률
+                {'params': E,   'lr': init_lr},
+                {'params': nu,  'lr': 5e-3}
             ])
         cand_k_s = []
         cand_nu = []
@@ -75,7 +75,7 @@ def opt_newmark(num_ele, delta_t, num_steps, num_dof, I, A, L, rho, init_E, init
             
         optimizer.zero_grad()
         disp, E, nu = newmark(base_pos, base_accel, num_ele, delta_t, num_steps, num_dof, \
-                                I, A, L, rho, E, assemble_K, assemble_M, optim=True, nu=nu)
+                                I, A, L, d, rho, E, assemble_K, assemble_M, optim=True, nu=nu)
         loss = loss_fn(tip_pos, disp[num_dof-2,:-1])
         loss.backward()
         optimizer.step()

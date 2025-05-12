@@ -13,7 +13,7 @@ from time_integ import cdm, newmark
 
 
 class DeformableBeamSim:
-    def __init__(self, config_paths, beam_model, time_integration, optimize, optim_num=0):
+    def __init__(self, config_paths, beam_model, time_integration, optimize, optim_num=0, dt=None):
         self.assemble_M = None
         self.assemble_K = None
         self.time_int = None
@@ -21,6 +21,7 @@ class DeformableBeamSim:
         self.config_paths = nat(glob(f"{config_paths}/data/*/*.yaml"))
         self.beam_model = beam_model
         self.time_integration = time_integration
+        self.dt = dt if dt is not None else None
         self.sim_idx = 0
         self.optimize = optimize
         if self.optimize:
@@ -43,21 +44,21 @@ class DeformableBeamSim:
         
     def set(self):
         beam_models = {
-            "euler-bernoulli": (euler_bernoulli.assemble_M_eb, euler_bernoulli.assemble_K_eb, assume_disp.eb_v_func),
-            "timoshenko": (timoshenko.assemble_M_timo, timoshenko.assemble_K_timo, assume_disp.tm_v_func)
+            "euler-bernoulli": (euler_bernoulli.assemble_M_eb, euler_bernoulli.assemble_K_eb, assume_disp.eb_v_func, assume_disp.eb_beam_stress),
+            "timoshenko": (timoshenko.assemble_M_timo, timoshenko.assemble_K_timo, assume_disp.tm_v_func, assume_disp.tm_beam_stress)
         }
         try:
-            self.assemble_M, self.assemble_K, self.v_func = beam_models[self.beam_model]
+            self.assemble_M, self.assemble_K, self.v_func, self.beam_stress = beam_models[self.beam_model]
         except KeyError:
             raise ValueError("Wrong Beam Model")
             
-        time_int_map = {
+        self.time_int_map = {
             "cdm": (cdm.cdm, cdm.opt_cdm),
             "newmark": (newmark.newmark, newmark.opt_newmark)
         }
 
         try:
-            self.time_int = time_int_map[self.time_integration][1 if self.optimize else 0]
+            self.time_int = self.time_int_map[self.time_integration][1 if self.optimize else 0]
         except KeyError:
             raise ValueError("Wrong Time Integration Method")
         
@@ -69,36 +70,40 @@ class DeformableBeamSim:
         with open(self.config_path, 'r') as f:
             self.cfg = yaml.full_load(f)
         self.key = self.cfg["save_fname"]
+        if self.dt is None:
+            self.dt = self.cfg["dt"]
         
     def prepare_data(self):
         tip_pos, tip_accel = src.read_optitrack(self.config_path, "tip", plot=self.vis_data_disp)
         base_pos, base_accel = src.read_optitrack(self.config_path, "base", plot=self.vis_data_disp)
-        
-        self.num_ele, self.dt, self.delta_t, self.num_steps, self.num_dof, self.I, self.A, self.L, self.rho, self.init_E, self.init_lr = \
-            src.init_simulation(self.config_path)
+        self.num_ele, self.dt, self.delta_t, self.num_steps, self.num_dof, self.I, self.A, self.L, self.d, self.rho, self.init_E, self.init_lr = \
+            src.init_simulation(self.config_path, self.dt)
             
         self.base_pos = torch.tensor(base_pos, dtype=torch.float)*100
         self.tip_pos = torch.tensor(tip_pos, dtype=torch.float)*100
         self.base_accel_shape = base_accel.shape
         self.num_steps = min(len(base_pos), int(6/self.dt))
+        if not (self.beam_model=="timoshenko" and self.optimize):
+            self.nu = 0.35
         
     def run_optimization(self):
         *_, self.cand_E, self.losses, self.cand_k_s, self.cand_nu = \
-                self.time_int(self.num_ele, self.delta_t, self.num_steps, self.num_dof, self.I, self.A, self.L, self.rho, self.init_E, self.init_lr, self.base_pos, self.tip_pos, torch.zeros(self.base_accel_shape), self.assemble_K, self.assemble_M, optim_num = self.optim_num, nu=0.35)
-        self.disp = newmark.newmark(self.base_pos, torch.zeros(self.base_accel_shape), \
+                self.time_int(self.num_ele, self.delta_t, self.num_steps, self.num_dof, self.I, self.A, self.L, self.d, self.rho, self.init_E, self.init_lr, self.base_pos, self.tip_pos, torch.zeros(self.base_accel_shape), self.assemble_K, self.assemble_M, optim_num = self.optim_num, nu=0.35)
+        self.nu = self.cand_nu[np.argmin(self.losses)]
+        self.disp = self.time_int_map[self.time_integration][0](self.base_pos, torch.zeros(self.base_accel_shape), \
                             self.num_ele, self.delta_t, self.num_steps, self.num_dof, \
-                            self.I, self.A, self.L, self.rho, self.cand_E[0], \
-                            self.assemble_K, self.assemble_M, optim=False)
-        self.init_disp = newmark.newmark(self.base_pos, torch.zeros(self.base_accel_shape), \
+                            self.I, self.A, self.L, self.d, self.rho, self.cand_E[0], \
+                            self.assemble_K, self.assemble_M, optim=False, nu=self.nu)
+        self.init_disp = self.time_int_map[self.time_integration][0](self.base_pos, torch.zeros(self.base_accel_shape), \
                             self.num_ele, self.delta_t, self.num_steps, self.num_dof, \
-                            self.I, self.A, self.L, self.rho, self.cand_E[np.argmin(self.losses)], \
-                            self.assemble_K, self.assemble_M, optim=False)
+                            self.I, self.A, self.L, self.d, self.rho, self.cand_E[np.argmin(self.losses)], \
+                            self.assemble_K, self.assemble_M, optim=False, nu=self.nu)
         
     def run_simulation(self):
         self.disp = self.time_int(self.base_pos, torch.zeros(self.base_accel_shape), \
                                 self.num_ele, self.delta_t, self.num_steps, self.num_dof, \
-                                self.I, self.A, self.L, self.rho, self.init_E, \
-                                self.assemble_K, self.assemble_M, optim=False)
+                                self.I, self.A, self.L, self.d, self.rho, self.init_E, \
+                                self.assemble_K, self.assemble_M, optim=False, nu=self.nu)
     def save_result(self):
         key = self.key
         self.configs[key] = self.cfg
@@ -148,8 +153,8 @@ class DeformableBeamSim:
         print(f"[INFO] Visualizing results to: {stress_path}")
         
         E = self.cand_E[np.argmin(self.losses)] if self.optimize else self.init_E
-        nu = self.cand_nu[np.argmin(self.losses)]
-        beam_visualization.plot_strain_stress(self.cfg, self.num_steps, self.disp, E, self.v_func, nu, self.I, self.key, save_path=stress_path)
+        nu = self.cand_nu[np.argmin(self.losses)] if (self.beam_model=="timoshenko" and self.optimize) else 0.35
+        beam_visualization.plot_strain_stress(self.cfg, self.num_steps, self.disp, E, self.v_func, self.beam_stress, nu, self.I, self.key, save_path=stress_path)
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run deformable beam simulation.")
@@ -182,4 +187,5 @@ if __name__ == "__main__":
         sim.sim()
         if sim.vis_result:
             sim.visualize_result()
-            sim.visualize_stress()
+            if sim.optimize:
+                sim.visualize_stress()

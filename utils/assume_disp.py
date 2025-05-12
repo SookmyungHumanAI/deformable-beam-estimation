@@ -2,7 +2,7 @@ import numpy as np
 
 '''  Euler-Bernoulli  '''
 
-def eb_v_func(idx, disp, num_e, L, E, nu, d, I):
+def eb_v_func(idx, disp, num_e, L):
     # v(x) = a[0]x^3 + a[1]x^2 + a[2]x^1 + a[3]
     # a[0]: v_1
     # a[1]: phi_1
@@ -14,6 +14,20 @@ def eb_v_func(idx, disp, num_e, L, E, nu, d, I):
     a[0], a[1] = np.linalg.inv(np.array([[L**3, L**2],[3*L**2, 2*L]]))@\
                 np.array([[disp[2*num_e + 2, idx]-a[2]*L-a[3]], [disp[2*num_e + 3, idx]-a[2]]])
     return a
+
+def eb_beam_stress(idx, disp, num_ele, L, v_func, cal_v, E, nu, d, I):
+    disp = disp.detach().numpy()
+    coeffs = np.empty(0)
+    for num_e in range(num_ele):
+        coeff = v_func(idx, disp, num_e, L)
+        if num_e==0:
+            coeffs = coeff[np.newaxis,:]
+        else:
+            coeffs = np.concatenate((coeffs, coeff[np.newaxis,:]), 0)
+        tranverse = cal_v(np.linspace(0*L,1*L,100), coeff)
+        if num_e==0:
+            x0 = tranverse[0]
+    return coeffs
 
 '''  Timoshenko  '''
 
@@ -40,6 +54,20 @@ def tm_v_func(idx, disp, num_e, L, E, nu, d, I):
     a[0] = (2*v1 + L*phi1-2*v2+L*phi2) / denom
     return a
 
+def tm_beam_stress(idx, disp, num_ele, L, v_func, cal_v, E, nu, d, I):
+    disp = disp.detach().numpy()
+    coeffs = np.empty(0)
+    for num_e in range(num_ele):
+        coeff = v_func(idx, disp, num_e, L, E, nu, d, I)
+        if num_e==0:
+            coeffs = coeff[np.newaxis,:]
+        else:
+            coeffs = np.concatenate((coeffs, coeff[np.newaxis,:]), 0)
+        tranverse = cal_v(np.linspace(0*L,1*L,100), coeff)
+        if num_e==0:
+            x0 = tranverse[0]
+    return coeffs
+
 '''  Euler-Bernoulli & Timoshenko  '''
 
 def cal_v(x, coeff):
@@ -57,19 +85,6 @@ def cal_strain(coeffs, num_ele, L):
 def cal_stress(E, total_strain, d):
     return E*total_strain*(-d/2)
 
-def beam_stress(idx, disp, num_ele, L, v_func, cal_v, E, nu, d, I):
-    disp = disp.detach().numpy()
-    coeffs = np.empty(0)
-    for num_e in range(num_ele):
-        coeff = v_func(idx, disp, num_e, L, E, nu, d, I)
-        if num_e==0:
-            coeffs = coeff[np.newaxis,:]
-        else:
-            coeffs = np.concatenate((coeffs, coeff[np.newaxis,:]), 0)
-        tranverse = cal_v(np.linspace(0*L,1*L,100), coeff)
-        if num_e==0:
-            x0 = tranverse[0]
-    return coeffs
 
 def cal_curvature(coeffs, num_ele, L):
     total_curvature_G = np.empty(0)

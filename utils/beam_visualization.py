@@ -4,7 +4,7 @@ import numpy as np
 
 from utils.assume_disp import *
 
-def plot_strain_stress(cfg, num_steps, disp, E,  v_func, nu, I, key, save_path=""):
+def plot_strain_stress(cfg, num_steps, disp, E,  v_func, beam_stress, nu, I, key, save_path=""):
     num_ele = cfg["num_ele"]
     d = cfg["d"]
     l = cfg["l"]
