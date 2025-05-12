@@ -1,6 +1,6 @@
 import torch
 
-def assemble_K_eb(num_ele, num_dof, E, I, L):
+def assemble_K_eb(num_ele, num_dof, E, I, L, nu=None):
     """
     Assembles the global stiffness matrix for a beam element system.
 

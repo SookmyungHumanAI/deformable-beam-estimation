@@ -2,7 +2,7 @@ import torch
 from math import pi
 
 
-def assemble_K_timo(num_ele, num_dof, E, I, L, d, k_s = 0.9, nu = 0.45):
+def assemble_K_timo(num_ele, num_dof, E, I, L, d, nu = 0.35):
     """
     Assembles the global stiffness matrix for a beam element system.
 
@@ -28,7 +28,7 @@ def assemble_K_timo(num_ele, num_dof, E, I, L, d, k_s = 0.9, nu = 0.45):
                                             [6*L,   (2-phi)*L**2,   -6*L,   (4+phi)*L**2]])
     for i in range(num_ele):
         K[2*i:2*(i+2), 2*i:2*(i+2)] = K[2*i:2*(i+2), 2*i:2*(i+2)] + k
-    
+        
     return K
 
 def assemble_M_timo_(num_ele, num_dof, rho, A, L):
