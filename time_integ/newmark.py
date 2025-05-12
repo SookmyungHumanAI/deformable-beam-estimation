@@ -52,10 +52,10 @@ def newmark(in_pos, in_accel, num_ele, delta_t, num_steps, num_dof, I, A, L, rho
 
 # def opt_newmark(base_pos, tip_pos, base_accel, sample_name, optim_num = 100):
 def opt_newmark(num_ele, delta_t, num_steps, num_dof, I, A, L, rho, init_E, init_lr, \
-    base_pos, tip_pos, base_accel, assemble_K, assemble_M, optim_num = 100, nu=None):
+    base_pos, tip_pos, base_accel, assemble_K, assemble_M, optim_num = 100, nu=-100):
 
     E = Parameter(torch.tensor([init_E], dtype=torch.float))
-    if nu is not None:
+    if nu != -100:
         nu = Parameter(torch.tensor([nu], dtype=torch.float))
         optimizer = Adam([
                 {'params': E,   'lr': init_lr},         # E에 대한 학습률
@@ -73,7 +73,7 @@ def opt_newmark(num_ele, delta_t, num_steps, num_dof, I, A, L, rho, init_E, init
     for j in range(optim_num):
         cand_E.append(E.item())
         
-        if nu is not None:
+        if nu != -100:
             cand_k_s.append((6*(1 + nu.item())) / (7 + 6 * nu.item()))
             cand_nu.append(nu.item())
             
@@ -84,11 +84,11 @@ def opt_newmark(num_ele, delta_t, num_steps, num_dof, I, A, L, rho, init_E, init
         loss.backward()
         optimizer.step()
         
-        if nu is not None:
+        if nu != -100:
             with torch.no_grad():
                 nu.clamp_(0.45+1e-7, 0.5-1e-7) 
-        losses.append(torch.sqrt(loss).item())    
-    if nu is not None:
-        return disp, cand_E, losses, None, None
-    else:
+        losses.append(torch.sqrt(loss).item())
+    if nu != -100:
         return disp, cand_E, losses, cand_k_s, cand_nu
+    else:
+        return disp, cand_E, losses, None, None
