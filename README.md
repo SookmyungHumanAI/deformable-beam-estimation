@@ -28,7 +28,15 @@ python main.py --config_root ./ --beam_model timoshenko --time_integration newma
 ```
 
 ---
+## Visualization
+### Optimization Result
+![disp](https://github.com/user-attachments/assets/db8ea1e0-9cd3-4567-b80f-54fae20c4aa0)
 
+### Stress/ Strain
+![stress_strain](https://github.com/user-attachments/assets/5f512d3d-ce08-420a-aaf2-306187ce2df4)
+
+
+---
 ## Citation
 
 If you use this code or parts of this simulation framework in your research, please cite the following paper:
