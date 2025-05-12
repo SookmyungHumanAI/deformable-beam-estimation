@@ -16,10 +16,12 @@ The structure should look like the following:
 
 ---
 
-## Install dependencies
+## Installation
 
 ```bash
-pip install numpy torch matplotlib opencv-python PyYAML natsort
+git https://github.com/SookmyungHumanAI/real2sim_simple_beam.git
+conda env create -f sim_beam.yaml
+conda activate sim_beam
 ```
 
 ## Run Optimization
