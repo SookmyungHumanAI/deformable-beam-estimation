@@ -5,7 +5,7 @@ We propose a simulation framework that integrates real-time visual tracking with
 ---
 
 ## Download Dataset
-Download data.zip from this Google Drive. Unzip it to the root dir.
+Download data.zip from this [Google Drive](https://drive.google.com/file/d/1JXhTpRsDGlvDu2qU6Q8SPhkaqf2Grh9N/view?usp=drive_link). Unzip it to the root dir.
 The structure should look like the following:
 ```bash
 ├── data 
@@ -24,7 +24,7 @@ pip install numpy torch matplotlib opencv-python PyYAML natsort
 
 ## Run Optimization
 ```bash
-python main.py --config_root ./configs --beam_model timoshenko --time_integration newmark --optimize True --optim_num 100
+python main.py --config_root ./ --beam_model timoshenko --time_integration newmark --optimize True --optim_num 100
 ```
 
 ---
